@@ -35,9 +35,19 @@ docker build --build-arg ORCA_VERSION=v2.4.2 -t orcaslicer-novnc .
 
 The noVNC/VNC session has **no authentication** by design (intended for a trusted LAN or behind an authenticating reverse proxy). Do **not** expose port 8080 directly to the internet.
 
-### GPU Acceleration/Passthrough
+### GPU Passthrough
 
-The image ships the drivers for **Nvidia, Intel and AMD** GPUs. How you pass the GPU in depends on the vendor.
+The image ships the drivers to pass an **Nvidia, Intel or AMD** GPU into the container. How you pass it in depends on the vendor (below).
+
+> **What this does — and does not — accelerate.** OrcaSlicer renders its 3D view
+> through the noVNC session's *virtual* X server (TigerVNC), which only offers
+> software GLX. So the **viewport itself is rendered on the CPU (`llvmpipe`)
+> regardless of the GPU you pass in** — running `glxinfo` will report `llvmpipe`,
+> not your card. Passing a GPU still gives you compute visibility (`nvidia-smi`),
+> Vulkan, and hardware video decode (VA-API) for the built-in browser. True
+> hardware-accelerated OpenGL for the viewport would require VirtualGL, which this
+> image does not (yet) integrate. For OrcaSlicer's moderate 3D needs, `llvmpipe`
+> on a decent CPU is usually fine.
 
 #### Nvidia
 
@@ -68,7 +78,7 @@ docker run -d -p 8080:8080 \
   ghcr.io/movieaddicted86/orcaslicer-novnc:latest
 ```
 
-To confirm acceleration is active, run `glxinfo | grep "OpenGL renderer"` in the container's terminal — it should name your GPU rather than `llvmpipe` (the software fallback).
+To confirm the GPU reached the container, run `nvidia-smi` (Nvidia) or `ls /dev/dri` (Intel/AMD) in the session's terminal. Note that `glxinfo` will still report `llvmpipe` for the viewport — see the note above.
 
 ## Links
 

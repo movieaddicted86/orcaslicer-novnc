@@ -71,15 +71,21 @@ The container runs OrcaSlicer as an unprivileged `orca` user (via `gosu`); the
     --name orcaslicer-novnc \
     ghcr.io/movieaddicted86/orcaslicer-novnc:latest
   ```
-- **GPU passthrough:** the image carries drivers for all three vendors.
+- **GPU passthrough:** the image carries drivers for all three vendors so a GPU can
+  be *passed in*, but see the hard limit below.
   - *Nvidia* — via the Nvidia Container Toolkit (`--gpus all` or
-    `NVIDIA_VISIBLE_DEVICES` / `NVIDIA_DRIVER_CAPABILITIES`). GLVND dispatch libs in
-    the image route GL to the driver the toolkit injects.
+    `NVIDIA_VISIBLE_DEVICES` / `NVIDIA_DRIVER_CAPABILITIES`).
   - *Intel / AMD* — via the host render nodes: `--device /dev/dri` plus, if GIDs
     differ, `--group-add "$(getent group render | cut -d: -f3)"`. Mesa's iris/radeonsi
     drivers (in `libgl1-mesa-dri`) do the work; the `orca` user is in `video`/`render`.
-  - Verify inside the session terminal with `glxinfo | grep "OpenGL renderer"`
-    (should not say `llvmpipe`, the software fallback). See [README](README.md#gpu-accelerationpassthrough).
+  - **The 3D viewport is NOT GPU-accelerated.** OrcaSlicer draws through TigerVNC's
+    virtual X server, which only offers software GLX — so `glxinfo` reports `llvmpipe`
+    no matter which GPU is passed in. Passthrough still buys compute (`nvidia-smi`),
+    Vulkan, and VA-API video decode for the browser. Hardware GL for the viewport
+    would need VirtualGL (render on the GPU, blit into the VNC framebuffer), which is
+    deliberately not integrated — the maintainer accepts `llvmpipe` for the viewport.
+    Verified July 2026 on a native host + RTX A2000: `nvidia-smi` sees the card,
+    `glxinfo` still shows `llvmpipe`. See [README](README.md#gpu-passthrough).
 
 ## Conventions & gotchas
 
