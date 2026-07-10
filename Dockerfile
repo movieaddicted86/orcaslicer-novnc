@@ -34,7 +34,19 @@ RUN apt-get update && \
         # cover the common host-side gaps for GTK3/WebKit/GStreamer/GL)
         libgtk-3-0t64 libwebkit2gtk-4.1-0 libgstreamer1.0-0 \
         libgstreamer-plugins-base1.0-0 gstreamer1.0-gtk3 libglu1-mesa \
-        libglew2.2 libosmesa6 libsecret-1-0 libnotify4 libspnav0 && \
+        libglew2.2 libosmesa6 libsecret-1-0 libnotify4 libspnav0 \
+        # GPU acceleration for Nvidia, Intel and AMD.
+        # - GLVND dispatch (libglvnd0/libgl1/libglx0/libegl1) lets the same GL
+        #   calls route to Mesa (Intel/AMD) or the Nvidia driver injected by the
+        #   Nvidia Container Toolkit at runtime.
+        # - libgl1-mesa-dri (installed above) already ships the iris (Intel) and
+        #   radeonsi (AMD) hardware GL drivers; these add Vulkan (ANV/RADV) and
+        #   VA-API video decode for Intel/AMD render nodes.
+        libglvnd0 libgl1 libglx0 libegl1 libgles2 \
+        mesa-vulkan-drivers libvulkan1 \
+        mesa-va-drivers intel-media-va-driver \
+        # glxinfo, for verifying GPU passthrough from the session terminal
+        mesa-utils && \
     rm -rf /var/lib/apt/lists/* && \
     locale-gen en_US.UTF-8
 
@@ -53,8 +65,12 @@ RUN chmod +x /orca/get_latest_orcaslicer_release.sh && \
     ln -s /opt/OrcaSlicer/AppRun /usr/local/bin/orca-slicer
 
 # Create an unprivileged user and wire up the config/prints directories.
+# orca joins video/render so it can open the host's /dev/dri render nodes for
+# Intel/AMD GPU acceleration (the render group is created if the base lacks it).
+# When the host's render GID differs, pass `--group-add <gid>` at runtime.
 RUN groupadd orca && \
-    useradd -g orca --create-home --home-dir /home/orca orca && \
+    (getent group render >/dev/null || groupadd render) && \
+    useradd -g orca -G video,render --create-home --home-dir /home/orca orca && \
     mkdir -p /configs/.config /prints && \
     ln -s /configs/.config /home/orca/.config && \
     echo 'XDG_DOWNLOAD_DIR="/prints/"' > /home/orca/.config/user-dirs.dirs && \

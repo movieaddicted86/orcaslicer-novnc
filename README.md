@@ -37,7 +37,38 @@ The noVNC/VNC session has **no authentication** by design (intended for a truste
 
 ### GPU Acceleration/Passthrough
 
-Like other Docker containers, you can pass an Nvidia GPU into the container using the `NVIDIA_VISIBLE_DEVICES` and `NVIDIA_DRIVER_CAPABILITIES` env vars, e.g. `-e NVIDIA_DRIVER_CAPABILITIES="all" -e NVIDIA_VISIBLE_DEVICES="all"`. Only tested on Nvidia GPUs.
+The image ships the drivers for **Nvidia, Intel and AMD** GPUs. How you pass the GPU in depends on the vendor.
+
+#### Nvidia
+
+Requires the [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the host. Pass the GPU with `--gpus`, or with the `NVIDIA_VISIBLE_DEVICES` / `NVIDIA_DRIVER_CAPABILITIES` env vars:
+
+```bash
+docker run -d -p 8080:8080 \
+  --gpus all \
+  -e NVIDIA_VISIBLE_DEVICES=all \
+  -e NVIDIA_DRIVER_CAPABILITIES=all \
+  -v orcaslicer-novnc-data:/configs/ \
+  -v orcaslicer-novnc-prints:/prints/ \
+  --name orcaslicer-novnc \
+  ghcr.io/movieaddicted86/orcaslicer-novnc:latest
+```
+
+#### Intel / AMD
+
+These use the host's DRI render nodes via Mesa (iris for Intel, radeonsi for AMD — already in the image). Pass `/dev/dri` in as a device. If the container's `render` group GID doesn't match the host's, also grant access with `--group-add`:
+
+```bash
+docker run -d -p 8080:8080 \
+  --device /dev/dri:/dev/dri \
+  --group-add "$(getent group render | cut -d: -f3)" \
+  -v orcaslicer-novnc-data:/configs/ \
+  -v orcaslicer-novnc-prints:/prints/ \
+  --name orcaslicer-novnc \
+  ghcr.io/movieaddicted86/orcaslicer-novnc:latest
+```
+
+To confirm acceleration is active, run `glxinfo | grep "OpenGL renderer"` in the container's terminal — it should name your GPU rather than `llvmpipe` (the software fallback).
 
 ## Links
 
