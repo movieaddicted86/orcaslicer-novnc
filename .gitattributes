@@ -1,2 +1,10 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Files consumed inside the Linux container must keep LF endings, otherwise a
+# CRLF checkout on Windows appends \r to shebangs and config values, breaking
+# the build/runtime (e.g. "#!/bin/bash\r: not found").
+*.sh             text eol=lf
+Dockerfile       text eol=lf
+*.conf           text eol=lf
+menu.xml         text eol=lf
